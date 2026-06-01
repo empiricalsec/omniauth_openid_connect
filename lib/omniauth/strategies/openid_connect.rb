@@ -122,15 +122,20 @@ module OmniAuth
       def callback_phase
         error = params['error_reason'] || params['error']
         error_description = params['error_description'] || params['error_reason']
+        cookie_state = stored_state
         invalid_state =
           if options.send_state
-            (options.require_state && params['state'].to_s.empty?) || params['state'] != stored_state
+            (options.require_state && params['state'].to_s.empty?) || params['state'] != cookie_state
           else
             false
           end
 
+        if invalid_state
+          reason_message = "Invalid 'state' parameter: from params: #{params['state']}, from cookie: #{cookie_state}, session cookie keys: #{session.keys}"
+        end
+
         raise CallbackError, error: params['error'], reason: error_description, uri: params['error_uri'] if error
-        raise CallbackError, error: :csrf_detected, reason: "Invalid 'state' parameter" if invalid_state
+        raise CallbackError, error: :csrf_detected, reason: reason_message if invalid_state
 
         return unless valid_response_type?
 
